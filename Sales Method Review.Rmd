@@ -1,0 +1,104 @@
+---
+title: "Sales Mehod Review"
+author: "Sarim Rizvi"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+theme_set(theme_minimal())
+```
+
+## Project Overview
+
+This project analyzes the efficiency of three sales strategies — **Email**, **Call**, and **Email + Call** — using real-world product sales data from a new office stationery line. The goal is to recommend the most scalable, cost-effective method based on revenue and effort..
+
+## Data Summary
+
+```{r Load Data}
+sales_clean <- read_csv("data/product_sales_clean.csv")
+glimpse(sales_clean)
+```
+- Raw data had information about 150000 customers.
+
+- Removed 1074 rows due to missing revenue, and 2 rows due to invalid customer tenure.
+
+- Total rows after cleaning: 13924
+
+## Exploratory Data Analysis
+### Sales Method Distribution
+```{r Sales Method Plot}
+sales_clean %>%
+  count(sales_method) %>%
+  ggplot(aes(x = sales_method, y = n, fill = sales_method)) +
+  geom_col() +
+  labs(title = "Customers by Sales Method", x = "Method", y = "Count") +
+  theme(legend.position = "none")
+```
+
+## Revenue Spread over Sales Method
+```{r Revenue 1}
+ggplot(sales_clean, aes(x = sales_method, y = revenue, fill = sales_method)) +
+  geom_boxplot() +
+  labs(title = "Revenue per Customer by Method", x = "Method", y = "Revenue ($)") +
+  theme(legend.position = "none")
+```
+
+
+## Revenue Over Time across Sales Method
+```{r Revenue 2}
+sales_clean %>%
+  group_by(week, sales_method) %>%
+  summarise(avg_revenue = mean(revenue), .groups = "drop") %>%
+  ggplot(aes(x = week, y = avg_revenue, color = sales_method)) +
+  geom_line(size = 1.2) +
+  labs(title = "Average Revenue Over Time by Method", y = "Avg Revenue ($)", color = 'Sales Method')
+```
+
+## Metric: Revenue per Minute
+```{r Metrics}
+sales_metrics <- sales_clean %>%
+  mutate(
+    estimated_minutes = case_when(
+      sales_method == "Email" ~ 1,
+      sales_method == "Call" ~ 30,
+      sales_method == "Email + Call" ~ 11
+    ),
+    revenue_per_unit = revenue / nb_sold,
+    revenue_per_minute = revenue / estimated_minutes
+  )
+
+metric_summary <- sales_metrics %>%
+  group_by(sales_method) %>%
+  summarise(
+    avg_revenue = mean(revenue),
+    avg_units = mean(nb_sold),
+    avg_rev_per_unit = mean(revenue_per_unit),
+    avg_rev_per_min = mean(revenue_per_minute),
+    avg_effort = mean(estimated_minutes),
+    customers = n(),
+    .groups = "drop"
+  )
+
+print(metric_summary)
+```
+
+## Key Insights
+- **Email** yields high revenue per minute (~$97), best for scale.
+
+- **Email + Call** brings the highest revenue per customer (~$184), ideal for high-value leads.
+
+- **Call-only** performs poorly in both revenue and efficiency.
+
+## Recommendation
+- Use **Email** as **default method** for all campaigns.
+
+- Use **Email + Call** for **top-tier accounts** based on past spending.
+
+- Avoid Call-only unless targeting niche, high-stakes clients.
+
+- Monitor **revenue per minute** weekly by method.
+
+
